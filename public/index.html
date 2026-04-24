@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BFHL Tree Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --border: #2a2a3a;
+    --accent: #7c3aed;
+    --accent2: #06b6d4;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --success: #10b981;
+    --danger: #f43f5e;
+    --warn: #f59e0b;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px 80px;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+  }
+
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -1px;
+  }
+
+  header p {
+    color: var(--muted);
+    margin-top: 8px;
+    font-size: 0.85rem;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    width: 100%;
+    max-width: 860px;
+    margin-bottom: 24px;
+  }
+
+  .card h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+  }
+
+  textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.85rem;
+    padding: 14px;
+    resize: vertical;
+    min-height: 130px;
+    outline: none;
+    transition: border-color 0.2s;
+    line-height: 1.6;
+  }
+
+  textarea:focus { border-color: var(--accent); }
+
+  .hint {
+    color: var(--muted);
+    font-size: 0.75rem;
+    margin-top: 10px;
+  }
+
+  button {
+    margin-top: 18px;
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+
+  button:hover { opacity: 0.9; }
+  button:active { transform: scale(0.99); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .error-box {
+    background: rgba(244,63,94,0.1);
+    border: 1px solid var(--danger);
+    border-radius: 8px;
+    padding: 14px 18px;
+    color: var(--danger);
+    font-size: 0.85rem;
+    margin-top: 0;
+  }
+
+  #results { display: none; }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+  }
+
+  .meta-item {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+  }
+
+  .meta-item .label {
+    color: var(--muted);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 4px;
+  }
+
+  .meta-item .value {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--accent2);
+    word-break: break-all;
+  }
+
+  .hierarchies-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+  }
+
+  .h-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .h-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+
+  .h-card.cycle::before { background: var(--danger); }
+
+  .h-card .root-label {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.4rem;
+    color: var(--text);
+    margin-bottom: 8px;
+  }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 99px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  .badge-cycle { background: rgba(244,63,94,0.15); color: var(--danger); border: 1px solid var(--danger); }
+  .badge-tree { background: rgba(16,185,129,0.15); color: var(--success); border: 1px solid var(--success); }
+
+  .tree-view {
+    font-size: 0.78rem;
+    line-height: 1.7;
+    color: var(--accent2);
+    background: var(--surface);
+    border-radius: 6px;
+    padding: 10px;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  .depth-badge {
+    margin-top: 10px;
+    font-size: 0.75rem;
+    color: var(--muted);
+  }
+
+  .depth-badge span { color: var(--warn); font-weight: 700; }
+
+  .tags-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .tag {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 12px;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+
+  .tag.invalid { border-color: rgba(244,63,94,0.4); color: var(--danger); }
+  .tag.dup { border-color: rgba(245,158,11,0.4); color: var(--warn); }
+
+  .summary-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    flex: 1;
+    min-width: 140px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .stat .num {
+    font-family: 'Syne', sans-serif;
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--accent);
+  }
+
+  .stat .lbl {
+    color: var(--muted);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-top: 4px;
+  }
+
+  .loader {
+    display: none;
+    text-align: center;
+    padding: 20px;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+
+  .loader.active { display: block; }
+
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+  .loader.active { animation: pulse 1.2s ease infinite; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>BFHL Tree Explorer</h1>
+  <p>Hierarchical node graph analysis · SRM Full Stack Challenge</p>
+</header>
+
+<div class="card">
+  <h2>Input</h2>
+  <textarea id="inputArea" placeholder='Enter edges one per line or comma-separated:&#10;A->B&#10;A->C&#10;B->D&#10;X->Y, Y->Z, Z->X&#10;hello, 1->2'></textarea>
+  <p class="hint">Each entry: X->Y where X and Y are single uppercase letters. Separate by newline or comma.</p>
+  <button id="submitBtn" onclick="submitData()">Analyse →</button>
+</div>
+
+<div class="loader" id="loader">Processing nodes...</div>
+<div class="error-box" id="errorBox" style="display:none;max-width:860px;width:100%;"></div>
+
+<div id="results">
+
+  <div class="card" id="metaCard">
+    <h2>Identity</h2>
+    <div class="meta-grid" id="metaGrid"></div>
+  </div>
+
+  <div class="card" id="summaryCard">
+    <h2>Summary</h2>
+    <div class="summary-row" id="summaryRow"></div>
+  </div>
+
+  <div class="card" id="hierCard">
+    <h2>Hierarchies</h2>
+    <div class="hierarchies-grid" id="hierGrid"></div>
+  </div>
+
+  <div class="card" id="flagCard">
+    <h2>Flags</h2>
+    <div style="margin-bottom:16px;">
+      <div style="color:var(--danger);font-size:0.75rem;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Invalid Entries</div>
+      <div class="tags-list" id="invalidList"></div>
+    </div>
+    <div>
+      <div style="color:var(--warn);font-size:0.75rem;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px;">Duplicate Edges</div>
+      <div class="tags-list" id="dupList"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ← Change this to your deployed server URL when hosting
+  const API_BASE = window.location.origin;
+
+  function renderTree(obj, prefix = "", isLast = true) {
+    if (typeof obj !== "object" || obj === null) return "";
+    const keys = Object.keys(obj);
+    if (keys.length === 0) return "";
+    let out = "";
+    keys.forEach((k, i) => {
+      const last = i === keys.length - 1;
+      const connector = last ? "└── " : "├── ";
+      const childPrefix = prefix + (last ? "    " : "│   ");
+      out += prefix + connector + k + "\n";
+      if (obj[k] && typeof obj[k] === "object") {
+        out += renderTree(obj[k], childPrefix, last);
+      }
+    });
+    return out;
+  }
+
+  function treeToAscii(tree) {
+    const keys = Object.keys(tree);
+    if (!keys.length) return "(empty)";
+    const root = keys[0];
+    let out = root + "\n";
+    out += renderTree(tree[root]);
+    return out;
+  }
+
+  async function submitData() {
+    const raw = document.getElementById("inputArea").value.trim();
+    if (!raw) return;
+
+    const parts = raw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+
+    document.getElementById("errorBox").style.display = "none";
+    document.getElementById("results").style.display = "none";
+    document.getElementById("loader").classList.add("active");
+    document.getElementById("submitBtn").disabled = true;
+
+    try {
+      const res = await fetch(`${API_BASE}/bfhl`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data: parts })
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      renderResults(json);
+    } catch (e) {
+      document.getElementById("errorBox").textContent = "❌ API call failed: " + e.message;
+      document.getElementById("errorBox").style.display = "block";
+    } finally {
+      document.getElementById("loader").classList.remove("active");
+      document.getElementById("submitBtn").disabled = false;
+    }
+  }
+
+  function renderResults(d) {
+    // Meta
+    document.getElementById("metaGrid").innerHTML = [
+      ["User ID", d.user_id],
+      ["Email", d.email_id],
+      ["Roll Number", d.college_roll_number],
+    ].map(([l, v]) => `
+      <div class="meta-item">
+        <div class="label">${l}</div>
+        <div class="value">${v}</div>
+      </div>`).join("");
+
+    // Summary
+    const s = d.summary;
+    document.getElementById("summaryRow").innerHTML = `
+      <div class="stat"><div class="num">${s.total_trees}</div><div class="lbl">Trees</div></div>
+      <div class="stat"><div class="num">${s.total_cycles}</div><div class="lbl">Cycles</div></div>
+      <div class="stat"><div class="num">${s.largest_tree_root || "—"}</div><div class="lbl">Deepest Root</div></div>
+    `;
+
+    // Hierarchies
+    document.getElementById("hierGrid").innerHTML = d.hierarchies.map(h => {
+      if (h.has_cycle) {
+        return `<div class="h-card cycle">
+          <div class="root-label">${h.root}</div>
+          <span class="badge badge-cycle">⟳ Cycle</span>
+          <div class="tree-view">(cycle detected — no tree)</div>
+        </div>`;
+      }
+      const ascii = treeToAscii(h.tree);
+      return `<div class="h-card">
+        <div class="root-label">${h.root}</div>
+        <span class="badge badge-tree">✓ Tree</span>
+        <div class="tree-view">${ascii}</div>
+        <div class="depth-badge">Depth: <span>${h.depth}</span></div>
+      </div>`;
+    }).join("");
+
+    // Flags
+    const inv = d.invalid_entries;
+    document.getElementById("invalidList").innerHTML = inv.length
+      ? inv.map(e => `<span class="tag invalid">${e || '""'}</span>`).join("")
+      : `<span class="tag">None</span>`;
+
+    const dup = d.duplicate_edges;
+    document.getElementById("dupList").innerHTML = dup.length
+      ? dup.map(e => `<span class="tag dup">${e}</span>`).join("")
+      : `<span class="tag">None</span>`;
+
+    document.getElementById("results").style.display = "block";
+    document.getElementById("results").scrollIntoView({ behavior: "smooth" });
+  }
+</script>
+</body>
+</html>
